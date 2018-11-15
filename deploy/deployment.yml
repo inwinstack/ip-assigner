@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ip-assigner
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ip-assigner
+  template:
+    metadata:
+      labels:
+        app: ip-assigner
+    spec:
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      serviceAccountName: ip-assigner
+      containers:
+      - name: ip-assigner
+        image: kairen/ip-assigner:v0.1.0
+        args:
+        - --logtostderr=true
+        - --default-ignore-namespaces=kube-system,default,kube-public 
+        - --v=2

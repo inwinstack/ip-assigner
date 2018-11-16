@@ -1,0 +1,43 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx-2
+  name: nginx-2
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx-2
+  template:
+    metadata:
+      labels:
+        run: nginx-2
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.15.5
+        ports:
+        - containerPort: 80
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kairen.example.lb/address-pool: test
+  labels:
+    run: nginx-2
+  name: nginx-2
+  namespace: test
+spec:
+  ports:
+  - name: http-80
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: nginx-2
+  sessionAffinity: None
+  type: LoadBalancer

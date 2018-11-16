@@ -3,7 +3,7 @@ kind: Pool
 metadata:
   name: test
 spec:
-  address: 172.22.131.200/30
+  address: 172.22.131.200/28
   ignoreNamespaceAnnotation: true
   autoAssignToNamespace: false
   ignoreNamespaces:

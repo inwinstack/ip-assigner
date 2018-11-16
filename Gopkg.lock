@@ -67,6 +67,14 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  digest = "1:3a26588bc48b96825977c1b3df964f8fd842cd6860cc26370588d3563433cf11"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:65c4414eeb350c47b8de71110150d0ea8a281835b1f386eacaa3ad7325929c21"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -110,7 +118,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:accd04d66eb928d008f3080227aab17cedf67a5aa6bc4860e0dc86eef3d03772"
+  digest = "1:32f109723bdb383ee861f3b2a02e32c62a06e3c5b7b2c7bee50f231a6514e5f4"
   name = "github.com/inwinstack/blended"
   packages = [
     "apis/inwinstack",
@@ -119,7 +127,7 @@
     "client/clientset/versioned/typed/inwinstack/v1",
   ]
   pruneopts = "UT"
-  revision = "750d1fabf72cb0df0f1ac842a0d1b63d177712ab"
+  revision = "a62b0ab584232d038b7ce9c89ef9d49a6d53ad56"
 
 [[projects]]
   branch = "v1.11.0"
@@ -152,6 +160,14 @@
   pruneopts = "UT"
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
+
+[[projects]]
+  digest = "1:e5d0bd87abc2781d14e274807a470acd180f0499f8bf5bb18606e9ec22ad9de9"
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
+  version = "v1.2"
 
 [[projects]]
   branch = "master"
@@ -257,8 +273,7 @@
   version = "v2.2.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:c67ec4d6f093e0a29c25d30fb69213ab1f862b4f8b6294914dbde7b555c47ea0"
+  digest = "1:74142cd2275f77547c35ac51514108d9798a09aa0cf377a5c1084718ef7aa225"
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
@@ -292,7 +307,8 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "b799cb063522995aa05eddf298303250d130c144"
+  revision = "072894a440bdee3a891dea811fe42902311cd2a3"
+  version = "kubernetes-1.11.0"
 
 [[projects]]
   digest = "1:145647b653ff6a6882bbc2c4701ebcbce7be643007231d545560e4ce612ad5cb"
@@ -309,7 +325,7 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
-  digest = "1:3e5d6f34fefbb0169943b5a167de9b2443f695e436e96f9ba0f1050c29799250"
+  digest = "1:9c8f60d5f84006d428016ea5c5485a73d747077411da5f5942cb360c58933e06"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -343,6 +359,7 @@
     "pkg/util/net",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -425,12 +442,18 @@
   analyzer-version = 1
   input-imports = [
     "github.com/golang/glog",
+    "github.com/inwinstack/blended/apis/inwinstack/v1",
     "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1",
     "github.com/inwinstack/operator-kit",
     "github.com/spf13/pflag",
+    "k8s.io/api/core/v1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
+    "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/runtime/schema",
+    "k8s.io/apimachinery/pkg/util/uuid",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
     "k8s.io/client-go/tools/clientcmd",
   ]
   solver-name = "gps-cdcl"

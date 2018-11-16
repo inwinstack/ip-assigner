@@ -44,7 +44,7 @@ func (o *Operator) Initialize() error {
 	if err != nil {
 		return err
 	}
-	o.controller = service.NewController(ctx, clientset)
+	o.controller = service.NewController(ctx, clientset, o.flag.IgnoreNamespaces)
 	o.ctx = ctx
 	return nil
 }

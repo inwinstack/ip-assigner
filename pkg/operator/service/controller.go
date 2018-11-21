@@ -93,7 +93,7 @@ func (c *Controller) sync(svc *v1.Service) error {
 	}
 
 	pool := c.getPool(svc)
-	if len(svc.Spec.Ports) == 0 || pool == "" || svc.Spec.Type != v1.ServiceTypeLoadBalancer {
+	if len(svc.Spec.Ports) == 0 || pool == "" {
 		return nil
 	}
 

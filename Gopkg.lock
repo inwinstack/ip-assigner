@@ -130,14 +130,6 @@
   version = "v0.5.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:2a633cced72683421337730bdad23668318009e980ed6a22c192d935fb79e94a"
-  name = "github.com/inwinstack/ipam"
-  packages = ["pkg/constants"]
-  pruneopts = "UT"
-  revision = "9c4299b25c409e928323567c35e830ce0de37628"
-
-[[projects]]
   branch = "v1.11.0"
   digest = "1:aeeb73c8c978ae736982bfbc23e3104648471899012f2cfc9225187cc26798f3"
   name = "github.com/inwinstack/operator-kit"
@@ -476,7 +468,6 @@
     "github.com/golang/glog",
     "github.com/inwinstack/blended/apis/inwinstack/v1",
     "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1",
-    "github.com/inwinstack/ipam/pkg/constants",
     "github.com/inwinstack/operator-kit",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",

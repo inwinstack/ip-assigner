@@ -24,6 +24,10 @@ out/controller:
 dep:
 	dep ensure
 
+.PHONY: test
+test:
+	./test-go.sh
+
 .PHONY: build_image
 build_image:
 	docker build -t $(OWNER)/ip-assigner:$(VERSION) .

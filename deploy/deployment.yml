@@ -19,8 +19,9 @@ spec:
       serviceAccountName: ip-assigner
       containers:
       - name: ip-assigner
-        image: kairen/ip-assigner:v0.1.0
+        image: kairen/ip-assigner:v0.2.0
         args:
-        - --logtostderr=true
-        - --default-ignore-namespaces=kube-system,default,kube-public 
         - --v=2
+        - --logtostderr=true
+        - --default-address=172.22.132.150-172.22.132.200
+        - --default-ignore-namespaces=kube-system,default,kube-public

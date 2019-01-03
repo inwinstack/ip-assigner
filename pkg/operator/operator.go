@@ -1,3 +1,19 @@
+/*
+Copyright © 2018 inwinSTACK.inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package operator
 
 import (
@@ -8,24 +24,29 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	inwinclientset "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1"
+	clientset "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1"
+	"github.com/inwinstack/ip-assigner/pkg/constants"
+	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
+	"github.com/inwinstack/ip-assigner/pkg/operator/namespace"
 	opkit "github.com/inwinstack/operator-kit"
-	"github.com/kairen/ip-assigner/pkg/k8sutil"
-	"github.com/kairen/ip-assigner/pkg/operator/service"
 	"k8s.io/api/core/v1"
 	apiextensionsclients "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 type Flag struct {
-	Kubeconfig       string
-	IgnoreNamespaces []string
+	Kubeconfig                string
+	Address                   string
+	IgnoreNamespaces          []string
+	IgnoreNamespaceAnnotation bool
+	AutoAssignToNamespace     bool
 }
 
 type Operator struct {
-	ctx        *opkit.Context
-	controller *service.Controller
 	flag       *Flag
+	ctx        *opkit.Context
+	controller *namespace.NamespaceController
 }
 
 const (
@@ -40,16 +61,22 @@ func NewMainOperator(flag *Flag) *Operator {
 
 func (o *Operator) Initialize() error {
 	glog.V(2).Info("Initialize the operator resources.")
-	ctx, clientset, err := o.initContextAndClient()
+
+	ctx, blendedClient, err := o.initContextAndClient()
 	if err != nil {
 		return err
 	}
-	o.controller = service.NewController(ctx, clientset, o.flag.IgnoreNamespaces)
+
+	if err := o.createDefaultPool(blendedClient); err != nil {
+		glog.Fatalf("Failed to create default pool. %+v", err)
+	}
+
+	o.controller = namespace.NewController(ctx, blendedClient)
 	o.ctx = ctx
 	return nil
 }
 
-func (o *Operator) initContextAndClient() (*opkit.Context, inwinclientset.InwinstackV1Interface, error) {
+func (o *Operator) initContextAndClient() (*opkit.Context, clientset.InwinstackV1Interface, error) {
 	glog.V(2).Info("Initialize the operator context and client.")
 
 	config, err := k8sutil.GetRestConfig(o.flag.Kubeconfig)
@@ -62,23 +89,42 @@ func (o *Operator) initContextAndClient() (*opkit.Context, inwinclientset.Inwins
 		return nil, nil, fmt.Errorf("Failed to get Kubernetes client. %+v", err)
 	}
 
-	extensionsclient, err := apiextensionsclients.NewForConfig(config)
+	extensionsClient, err := apiextensionsclients.NewForConfig(config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create Kubernetes API extension clientset. %+v", err)
 	}
 
-	inwinclient, err := inwinclientset.NewForConfig(config)
+	blendedClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create blended clientset. %+v", err)
 	}
 
 	ctx := &opkit.Context{
 		Clientset:             client,
-		APIExtensionClientset: extensionsclient,
+		APIExtensionClientset: extensionsClient,
 		Interval:              interval,
 		Timeout:               timeout,
 	}
-	return ctx, inwinclient, nil
+	return ctx, blendedClient, nil
+}
+
+func (o *Operator) createDefaultPool(clientset clientset.InwinstackV1Interface) error {
+	if o.flag.Address == "" && o.flag.IgnoreNamespaces == nil {
+		return fmt.Errorf("Miss address and namespaces flag")
+	}
+
+	_, err := clientset.Pools().Get(constants.DefaultPool, metav1.GetOptions{})
+	if err == nil {
+		glog.Infof("The default pool already exists.")
+		return nil
+	}
+
+	pool := k8sutil.NewDefaultPool(o.flag.Address, o.flag.IgnoreNamespaces, o.flag.AutoAssignToNamespace, o.flag.IgnoreNamespaceAnnotation)
+	if _, err := clientset.Pools().Create(pool); err != nil {
+		return err
+	}
+	glog.Infof("The default pool has created.")
+	return nil
 }
 
 func (o *Operator) Run() error {

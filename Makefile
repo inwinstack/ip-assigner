@@ -1,23 +1,23 @@
 VERSION_MAJOR ?= 0
-VERSION_MINOR ?= 1
+VERSION_MINOR ?= 2
 VERSION_BUILD ?= 0
 VERSION ?= v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD)
 
 GOOS ?= $(shell go env GOOS)
 
 ORG := github.com
-OWNER := kairen
+OWNER := inwinstack
 REPOPATH ?= $(ORG)/$(OWNER)/ip-assigner
 
 $(shell mkdir -p ./out)
 
 .PHONY: build
-build: out/operator
+build: out/controller
 
-.PHONY: out/operator
-out/operator: 
+.PHONY: out/controller
+out/controller: 
 	GOOS=$(GOOS) go build \
-	  -ldflags="-X $(REPOPATH)/pkg/version.version=$(VERSION)" \
+	  -ldflags="-s -w -X $(REPOPATH)/pkg/version.version=$(VERSION)" \
 	  -a -o $@ cmd/main.go
 
 .PHONY: dep 

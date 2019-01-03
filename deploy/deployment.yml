@@ -19,7 +19,7 @@ spec:
       serviceAccountName: ip-assigner
       containers:
       - name: ip-assigner
-        image: kairen/ip-assigner:v0.2.0
+        image: inwinstack/ip-assigner:v0.2.0
         args:
         - --v=2
         - --logtostderr=true

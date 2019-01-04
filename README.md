@@ -19,7 +19,7 @@ $ go run cmd/main.go \
     -v=2 \
     --logtostderr \
     --kubeconfig $HOME/.kube/config \
-    ---default-ignore-namespaces=kube-system,default,kube-public \
+    --default-ignore-namespaces=kube-system,default,kube-public \
     --default-address=192.168.100.0/24 
 ```
 

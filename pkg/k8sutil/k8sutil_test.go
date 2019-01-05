@@ -19,7 +19,9 @@ import (
 	"testing"
 
 	inwinv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
+	fake "github.com/inwinstack/blended/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,19 +37,6 @@ func newIP(name, poolName string) inwinv1.IP {
 	}
 }
 
-func newPool(name string) *inwinv1.Pool {
-	return &inwinv1.Pool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: inwinv1.PoolSpec{
-			Address:                   "172.22.132.150-172.22.132.200",
-			IgnoreNamespaces:          []string{"default", "kube-system", "kube-public"},
-			IgnoreNamespaceAnnotation: false,
-			AutoAssignToNamespace:     true,
-		},
-	}
-}
 func TestFilterIPsByPool(t *testing.T) {
 	expected := &inwinv1.IPList{
 		Items: []inwinv1.IP{
@@ -65,7 +54,29 @@ func TestFilterIPsByPool(t *testing.T) {
 		},
 	}
 
-	pool := newPool("default")
+	pool := NewDefaultPool(
+		"172.22.132.150-172.22.132.200",
+		[]string{"default", "kube-system", "kube-public"},
+		false, true,
+	)
 	FilterIPsByPool(ips, pool)
 	assert.Equal(t, expected, ips)
+}
+
+func TestNewIPWithNamespace(t *testing.T) {
+	ns := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	}
+
+	client := fake.NewSimpleClientset()
+
+	ip := NewIPWithNamespace(ns, "default")
+	createIP, err := client.InwinstackV1().IPs(ns.Name).Create(ip)
+	assert.Nil(t, err)
+	assert.NotNil(t, createIP)
+
+	referNS := createIP.OwnerReferences[0]
+	assert.Equal(t, ns.Name, referNS.Name)
 }

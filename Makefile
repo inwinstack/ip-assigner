@@ -26,7 +26,7 @@ dep:
 
 .PHONY: test
 test:
-	./test-go.sh
+	./hack/test-go.sh
 
 .PHONY: build_image
 build_image:

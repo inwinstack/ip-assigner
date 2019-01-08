@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	clientset "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1"
+	clientset "github.com/inwinstack/blended/client/clientset/versioned"
 	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
 	opkit "github.com/inwinstack/operator-kit"
@@ -42,10 +42,10 @@ var Resource = opkit.CustomResource{
 
 type NamespaceController struct {
 	ctx       *opkit.Context
-	clientset clientset.InwinstackV1Interface
+	clientset clientset.Interface
 }
 
-func NewController(ctx *opkit.Context, clientset clientset.InwinstackV1Interface) *NamespaceController {
+func NewController(ctx *opkit.Context, clientset clientset.Interface) *NamespaceController {
 	return &NamespaceController{ctx: ctx, clientset: clientset}
 }
 
@@ -117,7 +117,7 @@ func (c *NamespaceController) makeAnnotations(ns *v1.Namespace) {
 
 func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 	poolName := ns.Annotations[constants.AnnKeyPoolName]
-	pool, err := c.clientset.Pools().Get(poolName, metav1.GetOptions{})
+	pool, err := c.clientset.InwinstackV1().Pools().Get(poolName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 		return nil
 	}
 
-	ips, err := c.clientset.IPs(ns.Name).List(metav1.ListOptions{})
+	ips, err := c.clientset.InwinstackV1().IPs(ns.Name).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 	k8sutil.FilterIPsByPool(ips, pool)
 	for i := 0; i < (ipNumber - len(ips.Items)); i++ {
 		ip := k8sutil.NewIPWithNamespace(ns, poolName)
-		if _, err := c.clientset.IPs(ns.Name).Create(ip); err != nil {
+		if _, err := c.clientset.InwinstackV1().IPs(ns.Name).Create(ip); err != nil {
 			return err
 		}
 	}
@@ -147,7 +147,7 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 	// Delete IPs
 	for i := 0; i < (len(ips.Items) - ipNumber); i++ {
 		ip := ips.Items[len(ips.Items)-(1+i)]
-		if err := c.clientset.IPs(ns.Name).Delete(ip.Name, nil); err != nil {
+		if err := c.clientset.InwinstackV1().IPs(ns.Name).Delete(ip.Name, nil); err != nil {
 			return err
 		}
 	}
@@ -156,7 +156,7 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 
 func (c *NamespaceController) syncIPsToAnnotations(ns *v1.Namespace) error {
 	poolName := ns.Annotations[constants.AnnKeyPoolName]
-	pool, err := c.clientset.Pools().Get(poolName, metav1.GetOptions{})
+	pool, err := c.clientset.InwinstackV1().Pools().Get(poolName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (c *NamespaceController) syncIPsToAnnotations(ns *v1.Namespace) error {
 		return nil
 	}
 
-	ips, err := c.clientset.IPs(ns.Name).List(metav1.ListOptions{})
+	ips, err := c.clientset.InwinstackV1().IPs(ns.Name).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

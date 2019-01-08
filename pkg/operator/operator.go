@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	clientset "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1"
+	clientset "github.com/inwinstack/blended/client/clientset/versioned"
 	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
 	"github.com/inwinstack/ip-assigner/pkg/operator/namespace"
@@ -76,7 +76,7 @@ func (o *Operator) Initialize() error {
 	return nil
 }
 
-func (o *Operator) initContextAndClient() (*opkit.Context, clientset.InwinstackV1Interface, error) {
+func (o *Operator) initContextAndClient() (*opkit.Context, clientset.Interface, error) {
 	glog.V(2).Info("Initialize the operator context and client.")
 
 	config, err := k8sutil.GetRestConfig(o.flag.Kubeconfig)
@@ -108,19 +108,19 @@ func (o *Operator) initContextAndClient() (*opkit.Context, clientset.InwinstackV
 	return ctx, blendedClient, nil
 }
 
-func (o *Operator) createDefaultPool(clientset clientset.InwinstackV1Interface) error {
+func (o *Operator) createDefaultPool(clientset clientset.Interface) error {
 	if o.flag.Address == "" && o.flag.IgnoreNamespaces == nil {
 		return fmt.Errorf("Miss address and namespaces flag")
 	}
 
-	_, err := clientset.Pools().Get(constants.DefaultPool, metav1.GetOptions{})
+	_, err := clientset.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	if err == nil {
 		glog.Infof("The default pool already exists.")
 		return nil
 	}
 
 	pool := k8sutil.NewDefaultPool(o.flag.Address, o.flag.IgnoreNamespaces, o.flag.AutoAssignToNamespace, o.flag.IgnoreNamespaceAnnotation)
-	if _, err := clientset.Pools().Create(pool); err != nil {
+	if _, err := clientset.InwinstackV1().Pools().Create(pool); err != nil {
 		return err
 	}
 	glog.Infof("The default pool has created.")

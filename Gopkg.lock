@@ -515,8 +515,8 @@
   input-imports = [
     "github.com/golang/glog",
     "github.com/inwinstack/blended/apis/inwinstack/v1",
+    "github.com/inwinstack/blended/client/clientset/versioned",
     "github.com/inwinstack/blended/client/clientset/versioned/fake",
-    "github.com/inwinstack/blended/client/clientset/versioned/typed/inwinstack/v1",
     "github.com/inwinstack/operator-kit",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",

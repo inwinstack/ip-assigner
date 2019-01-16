@@ -72,10 +72,6 @@ func (c *NamespaceController) onAdd(obj interface{}) {
 			glog.Errorf("Failed to create IPs in %s namespace: %+v.", ns.Name, err)
 		}
 	}
-
-	if _, err := c.ctx.Clientset.CoreV1().Namespaces().Update(ns); err != nil {
-		glog.Errorf("Failed to update %s namespace: %+v.", ns.Name, err)
-	}
 }
 
 func (c *NamespaceController) onUpdate(oldObj, newObj interface{}) {
@@ -182,8 +178,9 @@ func (c *NamespaceController) syncIPsToAnnotations(ns *v1.Namespace) error {
 		}
 	}
 
-	ns.Annotations[constants.AnnKeyIPs] = ""
-	ns.Annotations[constants.AnnKeyLatestIP] = ""
+	delete(ns.Annotations, constants.AnnKeyIPs)
+	delete(ns.Annotations, constants.AnnKeyLatestIP)
+
 	if len(newIPs) != 0 {
 		ns.Annotations[constants.AnnKeyIPs] = strings.Join(newIPs, ",")
 		ns.Annotations[constants.AnnKeyLatestIP] = newIPs[len(newIPs)-1]

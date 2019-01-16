@@ -28,20 +28,18 @@ import (
 )
 
 var (
-	kubeconfig       string
-	address          string
-	namespaces       []string
-	autoAssign       bool
-	ignoreAnnotation bool
-	ver              bool
+	kubeconfig string
+	addresses  []string
+	namespaces []string
+	update     bool
+	ver        bool
 )
 
 func parserFlags() {
 	flag.StringVarP(&kubeconfig, "kubeconfig", "", "", "Absolute path to the kubeconfig file.")
-	flag.StringVarP(&address, "default-address", "", "", "Set default IP pool address.")
+	flag.StringSliceVarP(&addresses, "default-addresses", "", nil, "Set default IP pool addresses.")
 	flag.StringSliceVarP(&namespaces, "default-ignore-namespaces", "", nil, "Set default IP pool ignore namespaces.")
-	flag.BoolVarP(&autoAssign, "default-auto-assign", "", true, "Set default IP pool ignore namespace annotation.")
-	flag.BoolVarP(&ignoreAnnotation, "default-ignore-annotation", "", false, "Set default IP pool ignore namespace annotation.")
+	flag.BoolVarP(&update, "update", "", true, "Keep update default pool from flags.")
 	flag.BoolVarP(&ver, "version", "", false, "Display the version")
 	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	flag.Parse()
@@ -59,11 +57,10 @@ func main() {
 	glog.Infof("Starting IP assigner...")
 
 	f := &operator.Flag{
-		Kubeconfig:                kubeconfig,
-		Address:                   address,
-		IgnoreNamespaces:          namespaces,
-		IgnoreNamespaceAnnotation: ignoreAnnotation,
-		AutoAssignToNamespace:     autoAssign,
+		Kubeconfig:       kubeconfig,
+		Addresses:        addresses,
+		IgnoreNamespaces: namespaces,
+		KeepUpdate:       update,
 	}
 	op := operator.NewMainOperator(f)
 	if err := op.Initialize(); err != nil {

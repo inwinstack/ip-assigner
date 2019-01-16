@@ -122,7 +122,7 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 		return err
 	}
 
-	if slice.ContainsString(pool.Spec.IgnoreNamespaces, ns.Name) || !pool.Spec.AutoAssignToNamespace {
+	if slice.ContainsString(pool.Spec.IgnoreNamespaces, ns.Name) || !pool.Spec.AssignToNamespace {
 		return nil
 	}
 

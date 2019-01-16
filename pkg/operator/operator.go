@@ -36,11 +36,10 @@ import (
 )
 
 type Flag struct {
-	Kubeconfig                string
-	Address                   string
-	IgnoreNamespaces          []string
-	IgnoreNamespaceAnnotation bool
-	AutoAssignToNamespace     bool
+	Kubeconfig       string
+	Addresses        []string
+	IgnoreNamespaces []string
+	KeepUpdate       bool
 }
 
 type Operator struct {
@@ -67,7 +66,7 @@ func (o *Operator) Initialize() error {
 		return err
 	}
 
-	if err := o.createDefaultPool(blendedClient); err != nil {
+	if err := o.createAndUdateDefaultPool(blendedClient); err != nil {
 		glog.Fatalf("Failed to create default pool. %+v", err)
 	}
 
@@ -108,18 +107,30 @@ func (o *Operator) initContextAndClient() (*opkit.Context, clientset.Interface, 
 	return ctx, blendedClient, nil
 }
 
-func (o *Operator) createDefaultPool(clientset clientset.Interface) error {
-	if o.flag.Address == "" && o.flag.IgnoreNamespaces == nil {
+func (o *Operator) createAndUdateDefaultPool(clientset clientset.Interface) error {
+	if o.flag.Addresses == nil && o.flag.IgnoreNamespaces == nil {
 		return fmt.Errorf("Miss address and namespaces flag")
 	}
 
-	_, err := clientset.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
+	pool, err := clientset.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	if err == nil {
 		glog.Infof("The default pool already exists.")
+
+		if o.flag.KeepUpdate {
+			glog.Infof("The default pool has updated.")
+			pool.Spec.IgnoreNamespaces = o.flag.IgnoreNamespaces
+			pool.Spec.Addresses = o.flag.Addresses
+			pool.Spec.AvoidBuggyIPs = true
+			pool.Spec.AssignToNamespace = true
+			pool.Spec.IgnoreNamespaceAnnotation = false
+			if _, err := clientset.InwinstackV1().Pools().Update(pool); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
-	pool := k8sutil.NewDefaultPool(o.flag.Address, o.flag.IgnoreNamespaces, o.flag.AutoAssignToNamespace, o.flag.IgnoreNamespaceAnnotation)
+	pool = k8sutil.NewDefaultPool(o.flag.Addresses, o.flag.IgnoreNamespaces)
 	if _, err := clientset.InwinstackV1().Pools().Create(pool); err != nil {
 		return err
 	}

@@ -43,10 +43,10 @@ func TestController(t *testing.T) {
 			Name: "default",
 		},
 		Spec: inwinv1.PoolSpec{
-			Address:                   "172.22.132.150-172.22.132.200",
+			Addresses:                 []string{"172.22.132.150-172.22.132.200"},
 			IgnoreNamespaces:          []string{"default", "kube-system", "kube-public"},
 			IgnoreNamespaceAnnotation: false,
-			AutoAssignToNamespace:     true,
+			AssignToNamespace:         true,
 		},
 	}
 	_, poolerr := client.InwinstackV1().Pools().Create(pool)
@@ -66,8 +66,8 @@ func TestController(t *testing.T) {
 			Namespace: ns.Name,
 		},
 		Spec: inwinv1.IPSpec{
-			PoolName:        pool.Name,
-			UpdateNamespace: false,
+			PoolName:             pool.Name,
+			MarkNamespaceRefresh: false,
 		},
 		Status: inwinv1.IPStatus{
 			Phase:          inwinv1.IPActive,

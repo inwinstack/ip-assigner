@@ -22,9 +22,9 @@ spec:
       serviceAccountName: ip-assigner
       containers:
       - name: ip-assigner
-        image: inwinstack/ip-assigner:v0.2.0
+        image: inwinstack/ip-assigner:v0.3.0
         args:
         - --v=2
         - --logtostderr=true
-        - --default-address=172.22.132.150-172.22.132.200
+        - --default-addresses=172.22.132.150-172.22.132.200
         - --default-ignore-namespaces=kube-system,default,kube-public

@@ -18,12 +18,12 @@ package namespace
 
 import (
 	"reflect"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/golang/glog"
+	inwinv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
 	clientset "github.com/inwinstack/blended/client/clientset/versioned"
+	"github.com/inwinstack/ip-assigner/pkg/config"
 	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
 	opkit "github.com/inwinstack/operator-kit"
@@ -43,17 +43,17 @@ var Resource = opkit.CustomResource{
 type NamespaceController struct {
 	ctx       *opkit.Context
 	clientset clientset.Interface
+	conf      *config.OperatorConfig
 }
 
-func NewController(ctx *opkit.Context, clientset clientset.Interface) *NamespaceController {
-	return &NamespaceController{ctx: ctx, clientset: clientset}
+func NewController(ctx *opkit.Context, clientset clientset.Interface, conf *config.OperatorConfig) *NamespaceController {
+	return &NamespaceController{ctx: ctx, clientset: clientset, conf: conf}
 }
 
 func (c *NamespaceController) StartWatch(namespace string, stopCh chan struct{}) error {
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
 	}
 
 	glog.Infof("Start watching namespace resources.")
@@ -66,42 +66,43 @@ func (c *NamespaceController) onAdd(obj interface{}) {
 	ns := obj.(*v1.Namespace).DeepCopy()
 	glog.V(2).Infof("Received add on Namespace %s.", ns.Name)
 
-	c.makeAnnotations(ns)
-	if ns.Status.Phase != v1.NamespaceTerminating {
-		if err := c.createOrDeleteIPs(ns); err != nil {
-			glog.Errorf("Failed to create IPs in %s namespace: %+v.", ns.Name, err)
+	if !slice.ContainsString(c.conf.IgnoreNamespaces, ns.Name) {
+		if err := c.makeAnntations(ns); err != nil {
+			glog.Errorf("Failed to init %s namespace: %+v.", ns.Name, err)
 		}
-	}
 
-	if _, err := c.ctx.Clientset.CoreV1().Namespaces().Update(ns); err != nil {
-		glog.Errorf("Failed to update %s namespace: %+v.", ns.Name, err)
+		if ns.Status.Phase != v1.NamespaceTerminating {
+			if err := c.createOrDeleteIPs(ns); err != nil {
+				glog.Errorf("Failed to create IPs in %s namespace: %+v.", ns.Name, err)
+			}
+		}
 	}
 }
 
 func (c *NamespaceController) onUpdate(oldObj, newObj interface{}) {
-	ns := newObj.(*v1.Namespace).DeepCopy()
-	glog.V(2).Infof("Received update on Namespace %s.", ns.Name)
+	old := oldObj.(*v1.Namespace).DeepCopy()
+	new := newObj.(*v1.Namespace).DeepCopy()
+	glog.V(2).Infof("Received update on Namespace %s.", new.Name)
 
-	if ns.Status.Phase != v1.NamespaceTerminating {
-		if err := c.createOrDeleteIPs(ns); err != nil {
-			glog.Errorf("Failed to create IPs in %s namespace: %+v.", ns.Name, err)
+	if new.Status.Phase != v1.NamespaceTerminating {
+		if err := c.createOrDeleteIPs(new); err != nil {
+			glog.Errorf("Failed to create IPs in %s namespace: %+v.", new.Name, err)
 		}
 	}
 
-	_, refresh := ns.Annotations[constants.AnnKeyNamespaceRefresh]
-	if refresh {
-		if err := c.syncIPsToAnnotations(ns); err != nil {
-			glog.Errorf("Failed to sync IPs in %s namespace: %+v.", ns.Name, err)
+	oldPool := old.Annotations[constants.AnnKeyPoolName]
+	newPool := new.Annotations[constants.AnnKeyPoolName]
+	if oldPool != newPool && oldPool != "" {
+		// Cleanup old pool IPs
+		old.Annotations[constants.AnnKeyNumberOfIP] = "0"
+		old.Annotations[constants.AnnKeyDirtyResource] = "true"
+		if err := c.createOrDeleteIPs(old); err != nil {
+			glog.Errorf("Failed to cleanup IPs in %s namespace: %+v.", old.Name, err)
 		}
 	}
 }
 
-func (c *NamespaceController) onDelete(obj interface{}) {
-	ns := obj.(*v1.Namespace).DeepCopy()
-	glog.V(2).Infof("Received delete on Namespace %s.", ns.Name)
-}
-
-func (c *NamespaceController) makeAnnotations(ns *v1.Namespace) {
+func (c *NamespaceController) makeAnntations(ns *v1.Namespace) error {
 	if ns.Annotations == nil {
 		ns.Annotations = map[string]string{}
 	}
@@ -113,16 +114,20 @@ func (c *NamespaceController) makeAnnotations(ns *v1.Namespace) {
 	if ns.Annotations[constants.AnnKeyPoolName] == "" {
 		ns.Annotations[constants.AnnKeyPoolName] = constants.DefaultPool
 	}
+
+	if _, err := c.ctx.Clientset.CoreV1().Namespaces().Update(ns); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
-	poolName := ns.Annotations[constants.AnnKeyPoolName]
-	pool, err := c.clientset.InwinstackV1().Pools().Get(poolName, metav1.GetOptions{})
+	pool, err := c.getPool(ns)
 	if err != nil {
 		return err
 	}
 
-	if slice.ContainsString(pool.Spec.IgnoreNamespaces, ns.Name) || !pool.Spec.AutoAssignToNamespace {
+	if slice.ContainsString(pool.Spec.IgnoreNamespaces, ns.Name) || !pool.Spec.AssignToNamespace {
 		return nil
 	}
 
@@ -138,60 +143,34 @@ func (c *NamespaceController) createOrDeleteIPs(ns *v1.Namespace) error {
 
 	k8sutil.FilterIPsByPool(ips, pool)
 	for i := 0; i < (ipNumber - len(ips.Items)); i++ {
-		ip := k8sutil.NewIPWithNamespace(ns, poolName)
+		ip := k8sutil.NewIPWithNamespace(ns, pool.Name)
 		if _, err := c.clientset.InwinstackV1().IPs(ns.Name).Create(ip); err != nil {
 			return err
 		}
 	}
 
-	// Delete IPs
 	for i := 0; i < (len(ips.Items) - ipNumber); i++ {
 		ip := ips.Items[len(ips.Items)-(1+i)]
-		if err := c.clientset.InwinstackV1().IPs(ns.Name).Delete(ip.Name, nil); err != nil {
+		c.markIPDirty(&ip)
+		if _, err := c.clientset.InwinstackV1().IPs(ns.Name).Update(&ip); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *NamespaceController) syncIPsToAnnotations(ns *v1.Namespace) error {
+func (c *NamespaceController) getPool(ns *v1.Namespace) (*inwinv1.Pool, error) {
 	poolName := ns.Annotations[constants.AnnKeyPoolName]
 	pool, err := c.clientset.InwinstackV1().Pools().Get(poolName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return pool, nil
+}
 
-	if slice.ContainsString(pool.Spec.IgnoreNamespaces, ns.Name) || pool.Spec.IgnoreNamespaceAnnotation {
-		return nil
+func (c *NamespaceController) markIPDirty(ip *inwinv1.IP) {
+	if ip.Annotations == nil {
+		ip.Annotations = map[string]string{}
 	}
-
-	ips, err := c.clientset.InwinstackV1().IPs(ns.Name).List(metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	k8sutil.FilterIPsByPool(ips, pool)
-	sort.Slice(ips.Items, func(i, j int) bool {
-		return ips.Items[i].Status.LastUpdateTime.Before(&ips.Items[j].Status.LastUpdateTime)
-	})
-
-	var newIPs []string
-	for _, ip := range ips.Items {
-		if ip.Status.Address != "" {
-			newIPs = append(newIPs, ip.Status.Address)
-		}
-	}
-
-	ns.Annotations[constants.AnnKeyIPs] = ""
-	ns.Annotations[constants.AnnKeyLatestIP] = ""
-	if len(newIPs) != 0 {
-		ns.Annotations[constants.AnnKeyIPs] = strings.Join(newIPs, ",")
-		ns.Annotations[constants.AnnKeyLatestIP] = newIPs[len(newIPs)-1]
-	}
-
-	delete(ns.Annotations, constants.AnnKeyNamespaceRefresh)
-	if _, err := c.ctx.Clientset.CoreV1().Namespaces().Update(ns); err != nil {
-		return err
-	}
-	return nil
+	ip.Annotations[constants.AnnKeyDirtyResource] = "true"
 }

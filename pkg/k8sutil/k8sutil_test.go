@@ -31,8 +31,8 @@ func newIP(name, poolName string) inwinv1.IP {
 			Name: name,
 		},
 		Spec: inwinv1.IPSpec{
-			PoolName:        poolName,
-			UpdateNamespace: true,
+			PoolName:             poolName,
+			MarkNamespaceRefresh: true,
 		},
 	}
 }
@@ -54,11 +54,9 @@ func TestFilterIPsByPool(t *testing.T) {
 		},
 	}
 
-	pool := NewDefaultPool(
-		"172.22.132.150-172.22.132.200",
-		[]string{"default", "kube-system", "kube-public"},
-		false, true,
-	)
+	pool := NewPool("default",
+		[]string{"172.22.132.150-172.22.132.200"},
+		[]string{"default", "kube-system", "kube-public"})
 	FilterIPsByPool(ips, pool)
 	assert.Equal(t, expected, ips)
 }

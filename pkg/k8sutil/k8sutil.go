@@ -21,7 +21,6 @@ import (
 	"reflect"
 
 	inwinv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
-	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -70,22 +69,24 @@ func NewIPWithNamespace(ns *v1.Namespace, poolName string) *inwinv1.IP {
 			},
 		},
 		Spec: inwinv1.IPSpec{
-			PoolName:        poolName,
-			UpdateNamespace: true,
+			PoolName:             poolName,
+			MarkNamespaceRefresh: true,
 		},
 	}
 }
 
-func NewDefaultPool(addr string, namespaces []string, auto, ignore bool) *inwinv1.Pool {
+func NewPool(name string, addrs, namespaces []string) *inwinv1.Pool {
 	return &inwinv1.Pool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: constants.DefaultPool,
+			Name: name,
 		},
 		Spec: inwinv1.PoolSpec{
-			Address:                   addr,
+			Addresses:                 addrs,
 			IgnoreNamespaces:          namespaces,
-			IgnoreNamespaceAnnotation: ignore,
-			AutoAssignToNamespace:     auto,
+			IgnoreNamespaceAnnotation: false,
+			AssignToNamespace:         true,
+			AvoidBuggyIPs:             true,
+			AvoidGatewayIPs:           false,
 		},
 	}
 }

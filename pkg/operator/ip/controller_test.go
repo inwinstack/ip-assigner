@@ -110,6 +110,7 @@ func TestIPController(t *testing.T) {
 	onUpdateIPs, err := client.InwinstackV1().IPs(ns.Name).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(onUpdateIPs.Items))
+
 	// Test onDelete
 	controller.onDelete(updateIP)
 

@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestController(t *testing.T) {
+func TestIPController(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	coreClient := corefake.NewSimpleClientset()
 	extensionsClient := extensionsfake.NewSimpleClientset()

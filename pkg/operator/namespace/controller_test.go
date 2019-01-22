@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestController(t *testing.T) {
+func TestNamespaceController(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	coreClient := corefake.NewSimpleClientset()
 	extensionsClient := extensionsfake.NewSimpleClientset()

@@ -4,7 +4,14 @@
 A controller to auto-assign the IP address to Kubernetes Namespace.
 
 ### Requirements
-IP Assigner depend on IPAM v0.6, you can see more details from [IPAM GitHub](https://github.com/inwinstack/ipam).
+IP Assigner depend on IPAM, you can see more details from [IPAM GitHub](https://github.com/inwinstack/ipam).
+
+#### Compatibility Matrix
+
+| IPAM version | 0.6.x | 0.5.x | 
+|--------------|-------|-------|
+| 0.3.x        | Y     | X     |
+| 0.2.x        | Y     | Y     |
 
 ## Building from Source
 Clone repo into your go path under `$GOPATH/src`:

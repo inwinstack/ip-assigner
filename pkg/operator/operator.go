@@ -25,8 +25,10 @@ import (
 
 	"github.com/golang/glog"
 	clientset "github.com/inwinstack/blended/client/clientset/versioned"
+	"github.com/inwinstack/ip-assigner/pkg/config"
 	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
+	"github.com/inwinstack/ip-assigner/pkg/operator/ip"
 	"github.com/inwinstack/ip-assigner/pkg/operator/namespace"
 	opkit "github.com/inwinstack/operator-kit"
 	"k8s.io/api/core/v1"
@@ -35,17 +37,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type Flag struct {
-	Kubeconfig       string
-	Addresses        []string
-	IgnoreNamespaces []string
-	KeepUpdate       bool
-}
-
 type Operator struct {
-	flag       *Flag
-	ctx        *opkit.Context
-	controller *namespace.NamespaceController
+	conf         *config.OperatorConfig
+	ctx          *opkit.Context
+	controller   *namespace.NamespaceController
+	ipController *ip.IPController
 }
 
 const (
@@ -54,8 +50,8 @@ const (
 	timeout        = 60 * time.Second
 )
 
-func NewMainOperator(flag *Flag) *Operator {
-	return &Operator{flag: flag}
+func NewMainOperator(conf *config.OperatorConfig) *Operator {
+	return &Operator{conf: conf}
 }
 
 func (o *Operator) Initialize() error {
@@ -70,7 +66,8 @@ func (o *Operator) Initialize() error {
 		glog.Fatalf("Failed to create default pool. %+v", err)
 	}
 
-	o.controller = namespace.NewController(ctx, blendedClient)
+	o.controller = namespace.NewController(ctx, blendedClient, o.conf)
+	o.ipController = ip.NewController(ctx, blendedClient)
 	o.ctx = ctx
 	return nil
 }
@@ -78,7 +75,7 @@ func (o *Operator) Initialize() error {
 func (o *Operator) initContextAndClient() (*opkit.Context, clientset.Interface, error) {
 	glog.V(2).Info("Initialize the operator context and client.")
 
-	config, err := k8sutil.GetRestConfig(o.flag.Kubeconfig)
+	config, err := k8sutil.GetRestConfig(o.conf.Kubeconfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to get Kubernetes config. %+v", err)
 	}
@@ -108,18 +105,14 @@ func (o *Operator) initContextAndClient() (*opkit.Context, clientset.Interface, 
 }
 
 func (o *Operator) createAndUdateDefaultPool(clientset clientset.Interface) error {
-	if o.flag.Addresses == nil && o.flag.IgnoreNamespaces == nil {
-		return fmt.Errorf("Miss address and namespaces flag")
-	}
-
 	pool, err := clientset.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	if err == nil {
-		glog.Infof("The default pool already exists.")
+		glog.Infof("The %s pool already exists.", o.conf.PoolName)
 
-		if o.flag.KeepUpdate {
-			glog.Infof("The default pool has updated.")
-			pool.Spec.IgnoreNamespaces = o.flag.IgnoreNamespaces
-			pool.Spec.Addresses = o.flag.Addresses
+		if o.conf.KeepUpdate {
+			glog.Infof("The %s pool has updated.", o.conf.PoolName)
+			pool.Spec.IgnoreNamespaces = o.conf.IgnoreNamespaces
+			pool.Spec.Addresses = o.conf.Addresses
 			pool.Spec.AvoidBuggyIPs = true
 			pool.Spec.AssignToNamespace = true
 			pool.Spec.IgnoreNamespaceAnnotation = false
@@ -130,11 +123,11 @@ func (o *Operator) createAndUdateDefaultPool(clientset clientset.Interface) erro
 		return nil
 	}
 
-	pool = k8sutil.NewDefaultPool(o.flag.Addresses, o.flag.IgnoreNamespaces)
+	pool = k8sutil.NewPool(o.conf.PoolName, o.conf.Addresses, o.conf.IgnoreNamespaces)
 	if _, err := clientset.InwinstackV1().Pools().Create(pool); err != nil {
 		return err
 	}
-	glog.Infof("The default pool has created.")
+	glog.Infof("The %s pool has created.", o.conf.PoolName)
 	return nil
 }
 
@@ -145,6 +138,7 @@ func (o *Operator) Run() error {
 
 	// start watching the resources
 	o.controller.StartWatch(v1.NamespaceAll, stopChan)
+	o.ipController.StartWatch(v1.NamespaceAll, stopChan)
 
 	for {
 		select {

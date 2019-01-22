@@ -54,11 +54,9 @@ func TestFilterIPsByPool(t *testing.T) {
 		},
 	}
 
-	pool := NewDefaultPool(
+	pool := NewPool("default",
 		[]string{"172.22.132.150-172.22.132.200"},
-		[]string{"default", "kube-system", "kube-public"},
-		false,
-	)
+		[]string{"default", "kube-system", "kube-public"})
 	FilterIPsByPool(ips, pool)
 	assert.Equal(t, expected, ips)
 }

@@ -22,24 +22,24 @@ import (
 	"os"
 
 	"github.com/golang/glog"
+	"github.com/inwinstack/ip-assigner/pkg/config"
 	"github.com/inwinstack/ip-assigner/pkg/operator"
 	"github.com/inwinstack/ip-assigner/pkg/version"
 	flag "github.com/spf13/pflag"
 )
 
 var (
-	kubeconfig string
-	addresses  []string
-	namespaces []string
-	update     bool
-	ver        bool
+	conf = &config.OperatorConfig{}
+	ver  bool
 )
 
 func parserFlags() {
-	flag.StringVarP(&kubeconfig, "kubeconfig", "", "", "Absolute path to the kubeconfig file.")
-	flag.StringSliceVarP(&addresses, "default-addresses", "", nil, "Set default IP pool addresses.")
-	flag.StringSliceVarP(&namespaces, "default-ignore-namespaces", "", nil, "Set default IP pool ignore namespaces.")
-	flag.BoolVarP(&update, "update", "", true, "Keep update default pool from flags.")
+	flag.StringVarP(&conf.Kubeconfig, "kubeconfig", "", "", "Absolute path to the kubeconfig file.")
+	flag.StringVarP(&conf.PoolName, "pool-name", "", "default", "Define the name of the pool.")
+	flag.StringSliceVarP(&conf.Addresses, "pool-addresses", "", nil, "Set default IP pool addresses.")
+	flag.StringSliceVarP(&conf.IgnoreNamespaces, "pool-ignore-namespaces", "", nil, "Set default IP pool ignore namespaces.")
+	flag.BoolVarP(&conf.KeepUpdate, "update", "", true, "Keep update default pool from flags.")
+	flag.IntVarP(&conf.Retry, "retry", "", 10, "The number of retry for failed.")
 	flag.BoolVarP(&ver, "version", "", false, "Display the version")
 	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	flag.Parse()
@@ -54,15 +54,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	if conf.Addresses == nil || conf.IgnoreNamespaces == nil || conf.PoolName == "" {
+		flag.Usage()
+		os.Exit(0)
+	}
+
 	glog.Infof("Starting IP assigner...")
 
-	f := &operator.Flag{
-		Kubeconfig:       kubeconfig,
-		Addresses:        addresses,
-		IgnoreNamespaces: namespaces,
-		KeepUpdate:       update,
-	}
-	op := operator.NewMainOperator(f)
+	op := operator.NewMainOperator(conf)
 	if err := op.Initialize(); err != nil {
 		glog.Fatalf("Error initing operator instance: %+v.\n", err)
 	}

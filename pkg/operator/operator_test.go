@@ -22,6 +22,7 @@ import (
 	fake "github.com/inwinstack/blended/client/clientset/versioned/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/inwinstack/ip-assigner/pkg/config"
 	"github.com/inwinstack/ip-assigner/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,26 +30,27 @@ import (
 func TestOperator(t *testing.T) {
 	client := fake.NewSimpleClientset()
 
-	f := &Flag{
+	conf := &config.OperatorConfig{
+		PoolName:         "default",
 		Addresses:        []string{"172.22.132.150-172.22.132.160"},
 		IgnoreNamespaces: []string{"kube-system", "default", "kube-public"},
 		KeepUpdate:       true,
 	}
-	op := NewMainOperator(f)
+	op := NewMainOperator(conf)
 	assert.Nil(t, op.createAndUdateDefaultPool(client))
 
 	pool, err := client.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, pool.Spec.Addresses, f.Addresses)
-	assert.Equal(t, pool.Spec.IgnoreNamespaces, f.IgnoreNamespaces)
+	assert.Equal(t, pool.Spec.Addresses, conf.Addresses)
+	assert.Equal(t, pool.Spec.IgnoreNamespaces, conf.IgnoreNamespaces)
 	assert.Equal(t, pool.Spec.AssignToNamespace, true)
 	assert.Equal(t, pool.Spec.IgnoreNamespaceAnnotation, false)
 	assert.Equal(t, pool.Spec.AvoidBuggyIPs, true)
 	assert.Equal(t, pool.Spec.AvoidGatewayIPs, false)
 
-	op.flag.Addresses = []string{"172.22.132.150-172.22.132.160", "172.22.132.161-172.22.132.170"}
+	op.conf.Addresses = []string{"172.22.132.150-172.22.132.160", "172.22.132.161-172.22.132.170"}
 	assert.Nil(t, op.createAndUdateDefaultPool(client))
 	updatePool, err := client.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, updatePool.Spec.Addresses, op.flag.Addresses)
+	assert.Equal(t, updatePool.Spec.Addresses, op.conf.Addresses)
 }

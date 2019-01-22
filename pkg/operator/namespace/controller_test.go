@@ -84,7 +84,7 @@ func TestController(t *testing.T) {
 		Interval:              500 * time.Millisecond,
 		Timeout:               60 * time.Second,
 	}
-	controller := NewController(ctx, client)
+	controller := NewController(ctx, client, 5)
 
 	// Test onAdd
 	controller.onAdd(createNS)

@@ -163,7 +163,9 @@ func (c *IPController) updateNamespaceIPs(action string, ip *inwinv1.IP) error {
 			}
 
 			ns.Annotations[constants.AnnKeyIPs] = strings.Join(ips, ",")
-			ns.Annotations[constants.AnnKeyLatestIP] = ips[len(ips)-1]
+			if len(ips) > 0 {
+				ns.Annotations[constants.AnnKeyLatestIP] = ips[len(ips)-1]
+			}
 
 			if len(ips) == 0 {
 				delete(ns.Annotations, constants.AnnKeyIPs)

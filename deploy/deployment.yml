@@ -26,5 +26,6 @@ spec:
         args:
         - --v=2
         - --logtostderr=true
-        - --default-addresses=172.22.132.150-172.22.132.200
-        - --default-ignore-namespaces=kube-system,default,kube-public
+        - --pool-name=default
+        - --pool-addresses=192.168.99.10-192.168.99.100
+        - --pool-ignore-namespaces=kube-system,default,kube-public,ingress-nginx

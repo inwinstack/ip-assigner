@@ -41,16 +41,17 @@ func TestOperator(t *testing.T) {
 
 	pool, err := client.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, pool.Spec.Addresses, conf.Addresses)
-	assert.Equal(t, pool.Spec.IgnoreNamespaces, conf.IgnoreNamespaces)
-	assert.Equal(t, pool.Spec.AssignToNamespace, true)
-	assert.Equal(t, pool.Spec.IgnoreNamespaceAnnotation, false)
-	assert.Equal(t, pool.Spec.AvoidBuggyIPs, true)
-	assert.Equal(t, pool.Spec.AvoidGatewayIPs, false)
+	assert.Equal(t, conf.Addresses, pool.Spec.Addresses)
+	assert.Equal(t, conf.IgnoreNamespaces, pool.Spec.IgnoreNamespaces)
+	assert.Equal(t, true, pool.Spec.AssignToNamespace)
+	assert.Equal(t, false, pool.Spec.IgnoreNamespaceAnnotation)
+	assert.Equal(t, true, pool.Spec.AvoidBuggyIPs)
+	assert.Equal(t, false, pool.Spec.AvoidGatewayIPs)
 
 	op.conf.Addresses = []string{"172.22.132.150-172.22.132.160", "172.22.132.161-172.22.132.170"}
 	assert.Nil(t, op.createAndUdateDefaultPool(client))
+
 	updatePool, err := client.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, updatePool.Spec.Addresses, op.conf.Addresses)
+	assert.Equal(t, op.conf.Addresses, updatePool.Spec.Addresses)
 }

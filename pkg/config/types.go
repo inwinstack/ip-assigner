@@ -18,8 +18,8 @@ package config
 
 // Config contains the operator config
 type Config struct {
-	Threads int
-	SyncSec int
+	Threads     int
+	SyncSec     int
 	PrivatePool string
 	PublicPool  string
 }

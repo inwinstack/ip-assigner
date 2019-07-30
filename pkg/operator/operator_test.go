@@ -25,7 +25,7 @@ import (
 
 func TestOperator(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := &config.Config{Threads: 2}
+	cfg := &config.Config{Threads: 2, SyncSec: 60}
 	clientset := fake.NewSimpleClientset()
 	blendedset := blendedfake.NewSimpleClientset()
 

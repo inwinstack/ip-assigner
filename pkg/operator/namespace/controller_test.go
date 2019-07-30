@@ -38,7 +38,7 @@ import (
 
 const timeout = time.Second * 3
 
-func TestServiceController(t *testing.T) {
+func TestNamespaceController(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cfg := &config.Config{
 		Threads:    2,

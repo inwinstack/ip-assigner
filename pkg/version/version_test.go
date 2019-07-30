@@ -13,13 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package version
 
-package config
+import (
+	"testing"
 
-// Config contains the operator config
-type Config struct {
-	Threads int
-	SyncSec int
-	PrivatePool string
-	PublicPool  string
+	"github.com/stretchr/testify/assert"
+)
+
+func TestGetVersion(t *testing.T) {
+	assert.Equal(t, "v0.0.0-unset", GetVersion())
+
+	version = "v0.1.0"
+	assert.Equal(t, "v0.1.0", GetVersion())
 }

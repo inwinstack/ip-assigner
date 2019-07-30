@@ -1,5 +1,5 @@
 /*
-Copyright © 2018 inwinSTACK.inc
+Copyright © 2018 inwinSTACK Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,21 +16,25 @@ limitations under the License.
 
 package constants
 
+const Finalizer = "kubernetes"
+
+const PolicyPrefix = "k8s"
+
 const (
-	// DefaultPool represents the default pool name for a Namespace.
-	DefaultPool = "default"
-	// DefaultNumberOfIP represents the default number of IP for a Namespace.
+	// DefaultNumberOfIP represents the number of IP for a Namespace.
 	DefaultNumberOfIP = 1
-	// AnnKeyIPs will set in Namespace resource to display IPs of allocation.
-	AnnKeyIPs = "inwinstack.com/allocated-ips"
-	// AnnKeyLatestIP will set in Namespace resource to display the latest allocated IP.
-	AnnKeyLatestIP = "inwinstack.com/allocated-latest-ip"
-	// AnnKeyNumberOfIP will set in Namespace resource to represent the number of IP want to allocate.
-	AnnKeyNumberOfIP = "inwinstack.com/allocate-ip-number"
-	// AnnKeyPoolName will set in Namespace resource to represent the current IP pool.
-	AnnKeyPoolName = "inwinstack.com/allocate-pool-name"
-	// AnnKeyNamespaceRefresh will be set in Namespace resource to refresh annotations.
-	AnnKeyNamespaceRefresh = "inwinstack.com/namespace-refresh"
-	// AnnKeyDirtyResource will be set in Namespace and IP resource to mark it dirty.
-	AnnKeyDirtyResource = "inwinstack.com/dirty-resource"
+	// IPsKey is the key of annotation for displaying allocated IPs.
+	IPsKey = "inwinstack.com/allocated-ips"
+	// LatestIPKey is the key of annotation for displaying the latest of allocated IP.
+	LatestIPKey = "inwinstack.com/allocated-latest-ip"
+	// NumberOfIPKey is the key of annotation for representing the number of IP needs to allocate.
+	NumberOfIPKey = "inwinstack.com/allocate-ip-number"
+	// PrivatePoolKey is the key of annotation for the private pool for assigning IP.
+	PrivatePoolKey = "inwinstack.com/allocate-pool-name"
+	// PublicPoolKey is the key of annotation for the public pool for assigning IP.
+	PublicPoolKey = "inwinstack.com/external-pool"
+	// PublicIPKey is the key of annotation for displaying allocated public IP.
+	PublicIPKey = "inwinstack.com/allocated-public-ip"
+	// LatestPoolKey is the key of annotation for displaying the latest pool name.
+	LatestPoolKey = "inwinstack.com/latest-pool"
 )

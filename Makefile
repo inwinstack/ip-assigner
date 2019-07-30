@@ -1,5 +1,5 @@
 VERSION_MAJOR ?= 0
-VERSION_MINOR ?= 3
+VERSION_MINOR ?= 4
 VERSION_BUILD ?= 0
 VERSION ?= v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD)
 
@@ -19,10 +19,6 @@ out/controller:
 	GOOS=$(GOOS) go build \
 	  -ldflags="-s -w -X $(REPOPATH)/pkg/version.version=$(VERSION)" \
 	  -a -o $@ cmd/main.go
-
-.PHONY: dep 
-dep:
-	dep ensure
 
 .PHONY: test
 test:

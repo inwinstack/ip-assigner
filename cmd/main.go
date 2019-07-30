@@ -1,5 +1,5 @@
 /*
-Copyright © 2018 inwinSTACK.inc
+Copyright © 2018 inwinSTACK Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,32 +17,56 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	goflag "flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/inwinstack/ip-assigner/pkg/operator"
+
+	blended "github.com/inwinstack/blended/generated/clientset/versioned"
 
 	"github.com/golang/glog"
 	"github.com/inwinstack/ip-assigner/pkg/config"
-	"github.com/inwinstack/ip-assigner/pkg/operator"
 	"github.com/inwinstack/ip-assigner/pkg/version"
 	flag "github.com/spf13/pflag"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
-	conf = &config.OperatorConfig{}
-	ver  bool
+	cfg        = &config.Config{}
+	kubeconfig string
+	ver        bool
 )
 
 func parserFlags() {
-	flag.StringVarP(&conf.Kubeconfig, "kubeconfig", "", "", "Absolute path to the kubeconfig file.")
-	flag.StringVarP(&conf.PoolName, "pool-name", "", "default", "Define the name of the pool.")
-	flag.StringSliceVarP(&conf.Addresses, "pool-addresses", "", nil, "Set default IP pool addresses.")
-	flag.StringSliceVarP(&conf.IgnoreNamespaces, "pool-ignore-namespaces", "", nil, "Set default IP pool ignore namespaces.")
-	flag.BoolVarP(&conf.KeepUpdate, "update", "", true, "Keep update default pool from flags.")
-	flag.IntVarP(&conf.Retry, "retry", "", 10, "The number of retry for failed.")
-	flag.BoolVarP(&ver, "version", "", false, "Display the version")
+	flag.StringVarP(&kubeconfig, "kubeconfig", "", "", "Absolute path to the kubeconfig file.")
+	flag.IntVarP(&cfg.Threads, "threads", "", 2, "Number of worker threads used by the controller.")
+	flag.IntVarP(&cfg.SyncSec, "sync-seconds", "", 30, "Seconds for syncing and retrying objects.")
+	flag.StringVarP(&cfg.PrivatePool, "private-pool", "", "default", "The default for the private pool.")
+	flag.StringVarP(&cfg.PublicPool, "public-pool", "", "internet", "The default for the public pool.")
 	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	flag.Parse()
+}
+
+func restConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, err
+		}
+		return cfg, nil
+	}
+
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 func main() {
@@ -54,19 +78,32 @@ func main() {
 		os.Exit(0)
 	}
 
-	if conf.Addresses == nil || conf.IgnoreNamespaces == nil || conf.PoolName == "" {
-		flag.Usage()
-		os.Exit(0)
+	k8scfg, err := restConfig(kubeconfig)
+	if err != nil {
+		glog.Fatalf("Failed to build kubeconfig: %s", err.Error())
 	}
 
-	glog.Infof("Starting IP assigner...")
-
-	op := operator.NewMainOperator(conf)
-	if err := op.Initialize(); err != nil {
-		glog.Fatalf("Error initing operator instance: %+v.\n", err)
+	k8sclient, err := kubernetes.NewForConfig(k8scfg)
+	if err != nil {
+		glog.Fatalf("Failed to build Kubernetes client: %s", err.Error())
 	}
 
-	if err := op.Run(); err != nil {
-		glog.Fatalf("Error serving operator instance: %+v.\n", err)
+	blendedclient, err := blended.NewForConfig(k8scfg)
+	if err != nil {
+		glog.Fatalf("Failed to build Blended client: %s", err.Error())
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	op := operator.New(cfg, k8sclient, blendedclient)
+	if err := op.Run(ctx); err != nil {
+		glog.Fatalf("Error serving operator instance: %s.", err)
+	}
+
+	<-signalChan
+	cancel()
+	op.Stop()
+	glog.Infof("Shutdown signal received, exiting...")
 }

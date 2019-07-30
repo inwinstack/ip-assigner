@@ -26,4 +26,3 @@ spec:
         args:
         - --v=2
         - --logtostderr=true
-        - --pool-name=default

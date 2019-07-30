@@ -6,14 +6,6 @@ A controller that automatically assigns the IP address to Kubernetes Namespace(P
 ### Requirements
 IP Assigner depend on IPAM, you can see more details from [IPAM GitHub](https://github.com/inwinstack/ipam).
 
-#### Compatibility Matrix
-
-| IPAM version | 0.7.x | 0.6.x | 0.5.x | 
-|--------------|-------|-------|-------|
-| 0.4.x        | Y     | Y     | X     |
-| 0.3.x        | Y     | Y     | X     |
-| 0.2.x        | Y     | Y     | Y     |
-
 ## Building from Source
 Clone repo into your go path under `$GOPATH/src`:
 ```sh
@@ -30,7 +22,6 @@ $ go run cmd/main.go \
     -v=2 \
     --logtostderr \
     --kubeconfig $HOME/.kube/config \
-    --pool-configmap-names=default,internet
 ```
 
 ## Deploy in the cluster

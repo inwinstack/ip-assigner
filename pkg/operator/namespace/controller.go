@@ -179,7 +179,7 @@ func (c *Controller) reconcile(key string) error {
 	}
 
 	if _, ok := ns.Annotations[constants.LatestPoolKey]; ok {
-		if err := c.cleanUpLatestIPs(ns); err != nil {
+		if err := c.releaseIPsOfLatestPool(ns); err != nil {
 			return err
 		}
 	}
@@ -226,7 +226,7 @@ func (c *Controller) syncIPs(ns *v1.Namespace, poolName string) error {
 	return c.createOrDeleteIPs(ns, ips, number, poolName)
 }
 
-func (c *Controller) cleanUpLatestIPs(ns *v1.Namespace) error {
+func (c *Controller) releaseIPsOfLatestPool(ns *v1.Namespace) error {
 	ips, err := c.blendedset.InwinstackV1().IPs(ns.Name).List(metav1.ListOptions{})
 	if err != nil {
 		return err

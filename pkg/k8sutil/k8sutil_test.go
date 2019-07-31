@@ -1,5 +1,5 @@
 /*
-Copyright © 2018 inwinSTACK.inc
+Copyright © 2018 inwinSTACK Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,68 +13,80 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package k8sutil
 
 import (
 	"testing"
 
-	inwinv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
-	fake "github.com/inwinstack/blended/client/clientset/versioned/fake"
+	blendedv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
+	blendedfake "github.com/inwinstack/blended/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func newIP(name, poolName string) inwinv1.IP {
-	return inwinv1.IP{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: inwinv1.IPSpec{
-			PoolName:             poolName,
-			MarkNamespaceRefresh: true,
+func TestGetPool(t *testing.T) {
+	blendedset := blendedfake.NewSimpleClientset()
+	meta := metav1.ObjectMeta{
+		Name: "test1",
+		Annotations: map[string]string{
+			"get.pool": "test",
 		},
 	}
+
+	pool := &blendedv1.Pool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: blendedv1.PoolSpec{
+			Addresses:                 []string{"172.22.132.10-172.22.132.15"},
+			IgnoreNamespaces:          []string{},
+			IgnoreNamespaceAnnotation: false,
+			AssignToNamespace:         true,
+		},
+	}
+	_, err := blendedset.InwinstackV1().Pools().Create(pool)
+	assert.Nil(t, err)
+
+	gpool, err := GetPool(blendedset, meta, "get.pool")
+	assert.Nil(t, err)
+	assert.Equal(t, pool.Name, gpool.Name)
+	assert.Equal(t, pool.Spec, gpool.Spec)
+}
+
+func TestNewIP(t *testing.T) {
+	blendedset := blendedfake.NewSimpleClientset()
+	_, err := NewIP(blendedset, "test", "default", "default")
+	assert.Nil(t, err)
 }
 
 func TestFilterIPsByPool(t *testing.T) {
-	expected := &inwinv1.IPList{
-		Items: []inwinv1.IP{
+	newIP := func(name, poolName string) blendedv1.IP {
+		return blendedv1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: blendedv1.IPSpec{
+				PoolName: poolName,
+			},
+		}
+	}
+
+	expected := &blendedv1.IPList{
+		Items: []blendedv1.IP{
 			newIP("test1", "default"),
 			newIP("test4", "default"),
 		},
 	}
 
-	ips := &inwinv1.IPList{
-		Items: []inwinv1.IP{
+	ips := &blendedv1.IPList{
+		Items: []blendedv1.IP{
 			newIP("test1", "default"),
 			newIP("test2", "test"),
 			newIP("test3", "internet"),
 			newIP("test4", "default"),
 		},
 	}
-
-	pool := NewPool("default",
-		[]string{"172.22.132.150-172.22.132.200"},
-		[]string{"default", "kube-system", "kube-public"})
-	FilterIPsByPool(ips, pool)
+	FilterIPsByPool(ips, "default")
 	assert.Equal(t, expected, ips)
-}
-
-func TestNewIPWithNamespace(t *testing.T) {
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-		},
-	}
-
-	client := fake.NewSimpleClientset()
-
-	ip := NewIPWithNamespace(ns, "default")
-	createIP, err := client.InwinstackV1().IPs(ns.Name).Create(ip)
-	assert.Nil(t, err)
-	assert.NotNil(t, createIP)
-
-	referNS := createIP.OwnerReferences[0]
-	assert.Equal(t, ns.Name, referNS.Name)
 }

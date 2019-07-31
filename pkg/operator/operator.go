@@ -1,5 +1,5 @@
 /*
-Copyright © 2018 inwinSTACK.inc
+Copyright © 2018 inwinSTACK Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,135 +17,60 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/golang/glog"
-	clientset "github.com/inwinstack/blended/client/clientset/versioned"
+	blended "github.com/inwinstack/blended/generated/clientset/versioned"
 	"github.com/inwinstack/ip-assigner/pkg/config"
-	"github.com/inwinstack/ip-assigner/pkg/constants"
-	"github.com/inwinstack/ip-assigner/pkg/k8sutil"
-	"github.com/inwinstack/ip-assigner/pkg/operator/ip"
 	"github.com/inwinstack/ip-assigner/pkg/operator/namespace"
-	opkit "github.com/inwinstack/operator-kit"
-	"k8s.io/api/core/v1"
-	apiextensionsclients "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/inwinstack/ip-assigner/pkg/operator/service"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 )
 
+const defaultSyncTime = time.Second * 30
+
+// Operator represents an operator context
 type Operator struct {
-	conf         *config.OperatorConfig
-	ctx          *opkit.Context
-	controller   *namespace.NamespaceController
-	ipController *ip.IPController
+	clientset  kubernetes.Interface
+	blendedset blended.Interface
+	informer   informers.SharedInformerFactory
+
+	cfg       *config.Config
+	namespace *namespace.Controller
+	service   *service.Controller
 }
 
-const (
-	initRetryDelay = 10 * time.Second
-	interval       = 500 * time.Millisecond
-	timeout        = 60 * time.Second
-)
-
-func NewMainOperator(conf *config.OperatorConfig) *Operator {
-	return &Operator{conf: conf}
+// New creates an instance of the operator
+func New(cfg *config.Config, clientset kubernetes.Interface, blendedset blended.Interface) *Operator {
+	o := &Operator{cfg: cfg, clientset: clientset, blendedset: blendedset}
+	t := defaultSyncTime
+	if cfg.SyncSec > 30 {
+		t = time.Second * time.Duration(cfg.SyncSec)
+	}
+	o.informer = informers.NewSharedInformerFactory(clientset, t)
+	o.service = service.NewController(cfg, clientset, blendedset, o.informer.Core().V1().Services())
+	o.namespace = namespace.NewController(cfg, clientset, blendedset, o.informer.Core().V1().Namespaces())
+	return o
 }
 
-func (o *Operator) Initialize() error {
-	glog.V(2).Info("Initialize the operator resources.")
+// Run serves an isntance of the operator
+func (o *Operator) Run(ctx context.Context) error {
+	go o.informer.Start(ctx.Done())
 
-	ctx, blendedClient, err := o.initContextAndClient()
-	if err != nil {
-		return err
+	if err := o.service.Run(ctx, o.cfg.Threads); err != nil {
+		return fmt.Errorf("failed to run Service controller: %s", err.Error())
 	}
 
-	if err := o.createAndUdateDefaultPool(blendedClient); err != nil {
-		glog.Fatalf("Failed to create default pool. %+v", err)
+	if err := o.namespace.Run(ctx, o.cfg.Threads); err != nil {
+		return fmt.Errorf("failed to run Namespace controller: %s", err.Error())
 	}
-
-	o.controller = namespace.NewController(ctx, blendedClient, o.conf)
-	o.ipController = ip.NewController(ctx, blendedClient)
-	o.ctx = ctx
 	return nil
 }
 
-func (o *Operator) initContextAndClient() (*opkit.Context, clientset.Interface, error) {
-	glog.V(2).Info("Initialize the operator context and client.")
-
-	config, err := k8sutil.GetRestConfig(o.conf.Kubeconfig)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to get Kubernetes config. %+v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to get Kubernetes client. %+v", err)
-	}
-
-	extensionsClient, err := apiextensionsclients.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create Kubernetes API extension clientset. %+v", err)
-	}
-
-	blendedClient, err := clientset.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create blended clientset. %+v", err)
-	}
-
-	ctx := &opkit.Context{
-		Clientset:             client,
-		APIExtensionClientset: extensionsClient,
-		Interval:              interval,
-		Timeout:               timeout,
-	}
-	return ctx, blendedClient, nil
-}
-
-func (o *Operator) createAndUdateDefaultPool(clientset clientset.Interface) error {
-	pool, err := clientset.InwinstackV1().Pools().Get(constants.DefaultPool, metav1.GetOptions{})
-	if err == nil {
-		glog.Infof("The %s pool already exists.", o.conf.PoolName)
-
-		if o.conf.KeepUpdate {
-			glog.Infof("The %s pool has updated.", o.conf.PoolName)
-			pool.Spec.IgnoreNamespaces = o.conf.IgnoreNamespaces
-			pool.Spec.Addresses = o.conf.Addresses
-			pool.Spec.AvoidBuggyIPs = true
-			pool.Spec.AssignToNamespace = true
-			pool.Spec.IgnoreNamespaceAnnotation = false
-			if _, err := clientset.InwinstackV1().Pools().Update(pool); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	pool = k8sutil.NewPool(o.conf.PoolName, o.conf.Addresses, o.conf.IgnoreNamespaces)
-	if _, err := clientset.InwinstackV1().Pools().Create(pool); err != nil {
-		return err
-	}
-	glog.Infof("The %s pool has created.", o.conf.PoolName)
-	return nil
-}
-
-func (o *Operator) Run() error {
-	signalChan := make(chan os.Signal, 1)
-	stopChan := make(chan struct{})
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// start watching the resources
-	o.controller.StartWatch(v1.NamespaceAll, stopChan)
-	o.ipController.StartWatch(v1.NamespaceAll, stopChan)
-
-	for {
-		select {
-		case <-signalChan:
-			glog.Infof("Shutdown signal received, exiting...")
-			close(stopChan)
-			return nil
-		}
-	}
+// Stop stops all controllers
+func (o *Operator) Stop() {
+	o.service.Stop()
+	o.namespace.Stop()
 }

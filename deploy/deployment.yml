@@ -22,10 +22,7 @@ spec:
       serviceAccountName: ip-assigner
       containers:
       - name: ip-assigner
-        image: inwinstack/ip-assigner:v0.3.0
+        image: inwinstack/ip-assigner:v0.4.0
         args:
         - --v=2
         - --logtostderr=true
-        - --pool-name=default
-        - --pool-addresses=192.168.99.10-192.168.99.100
-        - --pool-ignore-namespaces=kube-system,default,kube-public,ingress-nginx

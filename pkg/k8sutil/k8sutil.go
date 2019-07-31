@@ -1,5 +1,5 @@
 /*
-Copyright © 2018 inwinSTACK.inc
+Copyright © 2018 inwinSTACK Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,76 +17,37 @@ limitations under the License.
 package k8sutil
 
 import (
-	"fmt"
-	"reflect"
-
-	inwinv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
-	"k8s.io/api/core/v1"
+	blendedv1 "github.com/inwinstack/blended/apis/inwinstack/v1"
+	blended "github.com/inwinstack/blended/generated/clientset/versioned"
+	"github.com/thoas/go-funk"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetRestConfig(kubeconfig string) (*rest.Config, error) {
-	if kubeconfig != "" {
-		cfg, err := clientcmd.BuildConfigFromFlags("master", kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-		return cfg, nil
-	}
-
-	cfg, err := rest.InClusterConfig()
+func GetPool(blendedset blended.Interface, meta metav1.ObjectMeta, key string) (*blendedv1.Pool, error) {
+	poolName := meta.Annotations[key]
+	pool, err := blendedset.InwinstackV1().Pools().Get(poolName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return cfg, nil
+	return pool, nil
 }
 
-func FilterIPsByPool(ips *inwinv1.IPList, pool *inwinv1.Pool) {
-	var items []inwinv1.IP
-	for _, ip := range ips.Items {
-		if ip.Spec.PoolName == pool.Name {
-			items = append(items, ip)
-		}
-	}
-	ips.Items = items
-}
-
-func NewIPWithNamespace(ns *v1.Namespace, poolName string) *inwinv1.IP {
-	return &inwinv1.IP{
+func NewIP(blendedset blended.Interface, name, namespace, pool string) (*blendedv1.IP, error) {
+	ip := &blendedv1.IP{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s", uuid.NewUUID()),
-			Namespace: ns.Name,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(ns, schema.GroupVersionKind{
-					Group:   v1.SchemeGroupVersion.Group,
-					Version: v1.SchemeGroupVersion.Version,
-					Kind:    reflect.TypeOf(v1.Namespace{}).Name(),
-				}),
-			},
+			Name:      name,
+			Namespace: namespace,
 		},
-		Spec: inwinv1.IPSpec{
-			PoolName:             poolName,
-			MarkNamespaceRefresh: true,
+		Spec: blendedv1.IPSpec{
+			PoolName: pool,
 		},
 	}
+	return blendedset.InwinstackV1().IPs(namespace).Create(ip)
 }
 
-func NewPool(name string, addrs, namespaces []string) *inwinv1.Pool {
-	return &inwinv1.Pool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: inwinv1.PoolSpec{
-			Addresses:                 addrs,
-			IgnoreNamespaces:          namespaces,
-			IgnoreNamespaceAnnotation: false,
-			AssignToNamespace:         true,
-			AvoidBuggyIPs:             true,
-			AvoidGatewayIPs:           false,
-		},
-	}
+func FilterIPsByPool(ips *blendedv1.IPList, poolName string) {
+	items := funk.Filter(ips.Items, func(ip blendedv1.IP) bool {
+		return poolName == ip.Spec.PoolName
+	})
+	ips.Items = items.([]blendedv1.IP)
 }
